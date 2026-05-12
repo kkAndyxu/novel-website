@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>书友圈 - 墨韵小说</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- 导航栏 -->
+  <nav class="navbar">
+    <div class="nav-container">
+      <a href="index.html" class="nav-logo">
+        <span class="logo-icon">📖</span>
+        <span>墨韵小说</span>
+      </a>
+      <div class="nav-links">
+        <a href="index.html">首页</a>
+        <a href="novels.html">小说库</a>
+        <a href="community.html" class="active">书友圈</a>
+        <a href="inspiration.html">写作灵感</a>
+        <a href="login.html" class="nav-btn">🔐 登录</a>
+      </div>
+      <button class="nav-menu-btn">☰</button>
+    </div>
+  </nav>
+
+  <!-- 主内容 -->
+  <main class="main-content">
+    <div class="community-layout">
+
+      <!-- 左侧：发布动态 + 动态列表 -->
+      <div class="community-main">
+
+        <!-- 发布动态 -->
+        <div class="post-composer" id="post-composer" style="display: none;">
+          <div class="composer-header">
+            <div class="composer-avatar" id="composer-avatar">?</div>
+            <span>发布一条动态...</span>
+          </div>
+          <textarea id="post-content" placeholder="分享你的读书感想、写作灵感、或者任何想说的话..." rows="3"></textarea>
+          <div class="composer-footer">
+            <div class="post-type-selector">
+              <button class="type-btn active" data-type="share" onclick="selectPostType(this)">📢 分享</button>
+              <button class="type-btn" data-type="review" onclick="selectPostType(this)">📝 书评</button>
+              <button class="type-btn" data-type="inspiration" onclick="selectPostType(this)">💡 灵感</button>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="submitPost()">发布</button>
+          </div>
+        </div>
+
+        <!-- 未登录提示 -->
+        <div class="post-composer" id="login-hint">
+          <p style="color: var(--text-light); text-align: center; padding: 20px;">
+            <a href="login.html" style="color: var(--accent); font-weight: 500;">登录</a> 后即可发布动态，与书友互动
+          </p>
+        </div>
+
+        <!-- 动态列表 -->
+        <div id="posts-feed">
+          <div class="loading"><div class="loading-spinner"></div></div>
+        </div>
+
+      </div>
+
+      <!-- 右侧：推荐用户 -->
+      <div class="community-sidebar">
+        <div class="sidebar-card">
+          <h3>👥 推荐书友</h3>
+          <div id="recommended-users">
+            <div class="loading"><div class="loading-spinner"></div></div>
+          </div>
+        </div>
+
+        <div class="sidebar-card">
+          <h3>🔥 热门话题</h3>
+          <ul class="topic-list">
+            <li># 每日阅读打卡</li>
+            <li># 写作心得分享</li>
+            <li># 好书推荐</li>
+            <li># 小说人物讨论</li>
+            <li># 写作灵感交流</li>
+            <li># 新书试读</li>
+          </ul>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- 页脚 -->
+  <footer class="footer">
+    <div class="footer-content">
+      <div class="footer-brand">
+        <h3>📖 墨韵小说</h3>
+        <p>一个开放的原创文学创作平台。</p>
+      </div>
+      <div class="footer-links">
+        <h4>快速导航</h4>
+        <a href="index.html">首页</a>
+        <a href="novels.html">小说库</a>
+        <a href="community.html">书友圈</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>© 2026 墨韵小说</p>
+    </div>
+  </footer>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+
+  <script src="firebase-config.js"></script>
+  <script src="auth.js"></script>
+  <script src="noveldb.js"></script>
+  <script src="social.js"></script>
+
+  <script>
+    let selectedPostType = 'share';
+
+    // 初始化
+    auth.onAuthStateChanged(async (user) => {
+      if (user) {
+        await UserManager.loadUserProfile();
+        document.getElementById('login-hint').style.display = 'none';
+        document.getElementById('post-composer').style.display = 'block';
+        document.getElementById('composer-avatar').textContent =
+          (UserManager.userProfile?.penName || '?').charAt(0).toUpperCase();
+      }
+      await loadPosts();
+      await loadRecommendedUsers();
+    });
+
+    // 选择动态类型
+    function selectPostType(btn) {
+      document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      selectedPostType = btn.dataset.type;
+    }
+
+    // 发布动态
+    async function submitPost() {
+      const content = document.getElementById('post-content').value;
+      const result = await PostSystem.createPost(content, selectedPostType);
+      if (result) {
+        document.getElementById('post-content').value = '';
+        await loadPosts();
+      }
+    }
+
+    // 加载动态
+    async function loadPosts() {
+      const posts = await PostSystem.getFeed(20);
+      const container = document.getElementById('posts-feed');
+
+      if (posts.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-icon">📝</div>
+            <h3>暂无动态</h3>
+            <p>成为第一个分享的人吧！</p>
+          </div>
+        `;
+      } else {
+        container.innerHTML = posts.map(post => PostSystem.renderPostCard(post)).join('');
+      }
+    }
+
+    // 加载推荐用户
+    async function loadRecommendedUsers() {
+      try {
+        const snapshot = await db.collection(COLLECTIONS.USERS).limit(5).get();
+        const users = snapshot.docs
+          .map(doc => ({ id: doc.id, ...doc.data() }))
+          .filter(u => u.id !== UserManager.currentUser?.uid);
+
+        const container = document.getElementById('recommended-users');
+        container.innerHTML = users.map(user => `
+          <div class="recommended-user">
+            <div class="recommended-avatar">${(user.penName || '匿').charAt(0)}</div>
+            <div class="recommended-info">
+              <div class="recommended-name">${user.penName || '匿名用户'}</div>
+              <div class="recommended-meta">${user.novelsCount || 0} 部作品</div>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="followFromCommunity('${user.id}', this)">关注</button>
+          </div>
+        `).join('');
+      } catch (error) {
+        document.getElementById('recommended-users').innerHTML = '<p style="color: var(--text-light); font-size: 0.85rem;">暂无推荐</p>';
+      }
+    }
+
+    // 关注
+    async function followFromCommunity(userId, btn) {
+      const isFollowed = await FollowSystem.follow(userId);
+      btn.textContent = isFollowed ? '已关注' : '关注';
+      btn.classList.toggle('btn-secondary', isFollowed);
+      btn.classList.toggle('btn-primary', !isFollowed);
+    }
+  </script>
+
+</body>
+</html>

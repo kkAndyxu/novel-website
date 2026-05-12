@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>私信 - 墨韵小说</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- 导航栏 -->
+  <nav class="navbar">
+    <div class="nav-container">
+      <a href="index.html" class="nav-logo">
+        <span class="logo-icon">📖</span>
+        <span>墨韵小说</span>
+      </a>
+      <div class="nav-links">
+        <a href="index.html">首页</a>
+        <a href="novels.html">小说库</a>
+        <a href="community.html">书友圈</a>
+        <a href="inspiration.html">写作灵感</a>
+        <a href="login.html" class="nav-btn">🔐 登录</a>
+      </div>
+      <button class="nav-menu-btn">☰</button>
+    </div>
+  </nav>
+
+  <!-- 主内容 -->
+  <main class="main-content">
+    <div class="messages-layout">
+
+      <!-- 左侧：会话列表 -->
+      <div class="messages-sidebar">
+        <div class="messages-header">
+          <h2>💬 私信</h2>
+        </div>
+        <div id="conversation-list">
+          <div class="loading"><div class="loading-spinner"></div></div>
+        </div>
+      </div>
+
+      <!-- 右侧：聊天区域 -->
+      <div class="chat-area" id="chat-area">
+        <div class="chat-placeholder">
+          <div class="empty-icon">💬</div>
+          <h3>选择一个会话开始聊天</h3>
+          <p>或者去 <a href="community.html" style="color: var(--accent);">书友圈</a> 认识新朋友</p>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- 页脚 -->
+  <footer class="footer">
+    <div class="footer-content">
+      <div class="footer-brand">
+        <h3>📖 墨韵小说</h3>
+        <p>一个开放的原创文学创作平台。</p>
+      </div>
+      <div class="footer-links">
+        <h4>快速导航</h4>
+        <a href="index.html">首页</a>
+        <a href="novels.html">小说库</a>
+        <a href="community.html">书友圈</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>© 2026 墨韵小说</p>
+    </div>
+  </footer>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+
+  <script src="firebase-config.js"></script>
+  <script src="auth.js"></script>
+  <script src="noveldb.js"></script>
+  <script src="social.js"></script>
+
+  <script>
+    // 初始化
+    auth.onAuthStateChanged(async (user) => {
+      if (!user) {
+        window.location.href = 'login.html';
+        return;
+      }
+      await UserManager.loadUserProfile();
+      await loadConversations();
+
+      // 检查URL参数，自动打开会话
+      const convId = getQueryParam('conv');
+      const otherUserId = getQueryParam('user');
+      const otherName = getQueryParam('name');
+      if (convId && otherUserId) {
+        openChat(convId, otherUserId, decodeURIComponent(otherName || '书友'));
+      }
+    });
+
+    // 加载会话列表
+    async function loadConversations() {
+      const conversations = await MessageSystem.getConversations();
+      document.getElementById('conversation-list').innerHTML =
+        MessageSystem.renderConversationList(conversations);
+    }
+
+    // 打开聊天
+    async function openChat(conversationId, otherUserId, otherUserName) {
+      const chatArea = document.getElementById('chat-area');
+
+      chatArea.innerHTML = `
+        <div class="chat-header">
+          <div class="chat-header-avatar">${otherUserName.charAt(0)}</div>
+          <div class="chat-header-info">
+            <span class="chat-header-name">${otherUserName}</span>
+            <span class="chat-header-status">在线</span>
+          </div>
+        </div>
+        <div class="chat-messages" id="chat-messages">
+          <div class="loading"><div class="loading-spinner"></div></div>
+        </div>
+        <div class="chat-input-area">
+          <input type="text" id="chat-input" placeholder="输入消息..."
+                 onkeypress="if(event.key==='Enter')sendMessage('${conversationId}', '${otherUserId}')">
+          <button class="btn btn-primary btn-sm" onclick="sendMessage('${conversationId}', '${otherUserId}')">发送</button>
+        </div>
+      `;
+
+      // 加载消息
+      const messages = await MessageSystem.getMessages(conversationId);
+      document.getElementById('chat-messages').innerHTML =
+        MessageSystem.renderChatMessages(messages, UserManager.currentUser.uid);
+
+      // 滚动到底部
+      const msgContainer = document.getElementById('chat-messages');
+      msgContainer.scrollTop = msgContainer.scrollHeight;
+
+      // 高亮当前会话
+      document.querySelectorAll('.conversation-item').forEach(item => {
+        item.classList.remove('active');
+      });
+    }
+
+    // 发送消息
+    async function sendMessage(conversationId, toUserId) {
+      const input = document.getElementById('chat-input');
+      const content = input.value.trim();
+      if (!content) return;
+
+      const result = await MessageSystem.sendMessage(toUserId, content);
+      if (result) {
+        input.value = '';
+        // 刷新消息
+        const messages = await MessageSystem.getMessages(conversationId);
+        document.getElementById('chat-messages').innerHTML =
+          MessageSystem.renderChatMessages(messages, UserManager.currentUser.uid);
+
+        const msgContainer = document.getElementById('chat-messages');
+        msgContainer.scrollTop = msgContainer.scrollHeight;
+
+        // 刷新会话列表
+        await loadConversations();
+      }
+    }
+  </script>
+
+</body>
+</html>
