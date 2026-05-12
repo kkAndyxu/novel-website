@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>个人中心 - 墨韵小说</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- 导航栏 -->
+  <nav class="navbar">
+    <div class="nav-container">
+      <a href="index.html" class="nav-logo">
+        <span class="logo-icon">📖</span>
+        <span>墨韵小说</span>
+      </a>
+      <div class="nav-links">
+        <a href="index.html">首页</a>
+        <a href="novels.html">小说库</a>
+        <a href="inspiration.html">写作灵感</a>
+        <a href="login.html" class="nav-btn">🔐 登录</a>
+      </div>
+      <div class="nav-search">
+        <span class="search-icon">🔍</span>
+        <input type="text" placeholder="搜索小说、作者...">
+      </div>
+      <button class="nav-menu-btn">☰</button>
+    </div>
+  </nav>
+
+  <!-- 主内容 -->
+  <main class="main-content">
+
+    <!-- 用户信息头部 -->
+    <div class="profile-header" id="profile-header">
+      <div class="loading"><div class="loading-spinner"></div></div>
+    </div>
+
+    <!-- 标签切换 -->
+    <div class="profile-tabs">
+      <div class="profile-tab active" onclick="switchProfileTab('novels')">我的作品</div>
+      <div class="profile-tab" onclick="switchProfileTab('settings')">个人设置</div>
+    </div>
+
+    <!-- 我的作品 -->
+    <div id="novels-panel">
+      <div class="section-header">
+        <h2 class="section-title">📚 我的作品</h2>
+        <a href="publish.html" class="btn btn-primary">✏️ 发布新作品</a>
+      </div>
+      <div class="novel-grid" id="my-novels">
+        <div class="loading"><div class="loading-spinner"></div></div>
+      </div>
+    </div>
+
+    <!-- 个人设置 -->
+    <div id="settings-panel" style="display: none;">
+      <div class="publish-form" style="max-width: 600px;">
+        <h3 style="margin-bottom: 24px;">修改个人资料</h3>
+        <div class="form-group">
+          <label>笔名</label>
+          <input type="text" class="form-input" id="edit-penname" placeholder="你的笔名">
+        </div>
+        <div class="form-group">
+          <label>个人简介</label>
+          <textarea class="form-input" id="edit-bio" placeholder="介绍一下自己吧..." style="min-height: 100px;"></textarea>
+        </div>
+        <button class="btn btn-primary" onclick="saveProfile()">保存修改</button>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- 页脚 -->
+  <footer class="footer">
+    <div class="footer-content">
+      <div class="footer-brand">
+        <h3>📖 墨韵小说</h3>
+        <p>一个开放的原创文学创作平台，致力于为每一位创作者提供展示才华的舞台。</p>
+      </div>
+      <div class="footer-links">
+        <h4>快速导航</h4>
+        <a href="index.html">首页</a>
+        <a href="novels.html">小说库</a>
+        <a href="inspiration.html">写作灵感</a>
+      </div>
+      <div class="footer-links">
+        <h4>热门分类</h4>
+        <a href="novels.html?category=科幻">科幻</a>
+        <a href="novels.html?category=古风">古风</a>
+        <a href="novels.html?category=都市">都市</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>© 2026 墨韵小说 - 用文字编织梦想</p>
+    </div>
+  </footer>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+
+  <script src="firebase-config.js"></script>
+  <script src="auth.js"></script>
+  <script src="noveldb.js"></script>
+
+  <script>
+    let currentUserId = null;
+
+    // 初始化
+    auth.onAuthStateChanged(async (user) => {
+      if (!user) {
+        window.location.href = 'login.html';
+        return;
+      }
+
+      currentUserId = user.uid;
+      await UserManager.loadUserProfile();
+      renderProfileHeader();
+      loadMyNovels();
+    });
+
+    // 渲染用户信息头部
+    function renderProfileHeader() {
+      const profile = UserManager.userProfile;
+      if (!profile) return;
+
+      document.getElementById('profile-header').innerHTML = `
+        <div class="profile-avatar">${profile.penName.charAt(0).toUpperCase()}</div>
+        <div class="profile-info">
+          <h1>${profile.penName}</h1>
+          <p class="bio">${profile.bio || '这个人很懒，什么都没写~'}</p>
+          <div class="profile-stats">
+            <div class="stat">
+              <div class="stat-value">${profile.novelsCount || 0}</div>
+              <div class="stat-label">作品</div>
+            </div>
+            <div class="stat">
+              <div class="stat-value">${profile.followersCount || 0}</div>
+              <div class="stat-label">粉丝</div>
+            </div>
+            <div class="stat">
+              <div class="stat-value">${profile.followingCount || 0}</div>
+              <div class="stat-label">关注</div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      // 填充设置表单
+      document.getElementById('edit-penname').value = profile.penName || '';
+      document.getElementById('edit-bio').value = profile.bio || '';
+    }
+
+    // 加载我的作品
+    async function loadMyNovels() {
+      const novels = await NovelDB.getByUserId(currentUserId);
+      const container = document.getElementById('my-novels');
+
+      if (novels.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state" style="grid-column: 1 / -1;">
+            <div class="empty-icon">📝</div>
+            <h3>还没有发布作品</h3>
+            <p>开始创作你的第一部小说吧！</p>
+            <a href="publish.html" class="btn btn-primary">✏️ 发布作品</a>
+          </div>
+        `;
+      } else {
+        container.innerHTML = novels.map(novel => `
+          <div class="novel-card" onclick="window.location.href='reader.html?id=${novel.id}'">
+            <div class="novel-cover cover-gradient-${novel.cover || 1}">
+              <span class="cover-text">${novel.title}</span>
+              <span class="cover-tag">${novel.category || '未分类'}</span>
+            </div>
+            <div class="novel-info">
+              <div class="novel-title">${novel.title}</div>
+              <div class="novel-desc">${novel.description || '暂无简介'}</div>
+              <div class="novel-meta">
+                <span>📖 ${novel.chapters ? novel.chapters.length : 0} 章</span>
+                <span>👁️ ${formatNumber(novel.views || 0)}</span>
+                <span>❤️ ${formatNumber(novel.likes || 0)}</span>
+              </div>
+            </div>
+          </div>
+        `).join('');
+      }
+    }
+
+    // 切换标签
+    function switchProfileTab(tab) {
+      document.querySelectorAll('.profile-tab').forEach(t => t.classList.remove('active'));
+      event.target.classList.add('active');
+
+      document.getElementById('novels-panel').style.display = tab === 'novels' ? 'block' : 'none';
+      document.getElementById('settings-panel').style.display = tab === 'settings' ? 'block' : 'none';
+    }
+
+    // 保存个人资料
+    async function saveProfile() {
+      const penName = document.getElementById('edit-penname').value.trim();
+      const bio = document.getElementById('edit-bio').value.trim();
+
+      if (!penName) {
+        showToast('笔名不能为空', 'error');
+        return;
+      }
+
+      const success = await UserManager.updateProfile({ penName, bio });
+      if (success) {
+        showToast('保存成功', 'success');
+        renderProfileHeader();
+      }
+    }
+  </script>
+
+</body>
+</html>

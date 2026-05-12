@@ -19,7 +19,7 @@
         <a href="index.html">首页</a>
         <a href="novels.html" class="active">小说库</a>
         <a href="inspiration.html">写作灵感</a>
-        <a href="publish.html" class="nav-btn">✏️ 发布作品</a>
+        <a href="login.html" class="nav-btn">🔐 登录</a>
       </div>
       <div class="nav-search">
         <span class="search-icon">🔍</span>
@@ -28,6 +28,11 @@
       <button class="nav-menu-btn">☰</button>
     </div>
   </nav>
+
+  <!-- 阅读进度条 -->
+  <div class="read-progress">
+    <div class="read-progress-bar" id="progress-bar" style="width: 0%"></div>
+  </div>
 
   <!-- 主内容 -->
   <main class="main-content">
@@ -39,7 +44,7 @@
 
     <!-- 阅读容器 -->
     <div class="reader-container" id="reader-container">
-      <!-- 动态填充 -->
+      <div class="loading"><div class="loading-spinner"></div></div>
     </div>
 
     <!-- 空状态 -->
@@ -52,131 +57,260 @@
 
   </main>
 
+  <!-- 右侧工具栏 -->
+  <div class="reader-toolbar">
+    <button class="tool-btn" id="bookshelf-btn" onclick="toggleBookshelf()" title="加入书架">📚</button>
+    <button class="tool-btn" id="like-btn" onclick="handleLike()" title="点赞">❤️</button>
+    <button class="tool-btn" onclick="scrollToTop()" title="回到顶部">⬆️</button>
+  </div>
+
   <!-- 页脚 -->
   <footer class="footer">
     <div class="footer-content">
       <div class="footer-brand">
         <h3>📖 墨韵小说</h3>
-        <p>一个开放的原创文学创作平台，致力于为每一位创作者提供展示才华的舞台，为每一位读者带来精彩的故事体验。</p>
+        <p>一个开放的原创文学创作平台。</p>
       </div>
       <div class="footer-links">
         <h4>快速导航</h4>
         <a href="index.html">首页</a>
         <a href="novels.html">小说库</a>
         <a href="inspiration.html">写作灵感</a>
-        <a href="publish.html">发布作品</a>
-      </div>
-      <div class="footer-links">
-        <h4>热门分类</h4>
-        <a href="novels.html?category=科幻">科幻</a>
-        <a href="novels.html?category=古风">古风</a>
-        <a href="novels.html?category=都市">都市</a>
-        <a href="novels.html?category=悬疑">悬疑</a>
       </div>
     </div>
     <div class="footer-bottom">
-      <p>© 2026 墨韵小说 - 用文字编织梦想</p>
+      <p>© 2026 墨韵小说</p>
     </div>
   </footer>
 
-  <script src="script.js"></script>
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+
+  <script src="firebase-config.js"></script>
+  <script src="auth.js"></script>
+  <script src="noveldb.js"></script>
+  <script src="comments.js"></script>
+  <script src="bookshelf.js"></script>
+
   <script>
-    const novelId = getQueryParam('id');
-    const chapterId = getQueryParam('chapter');
-    const container = document.getElementById('reader-container');
-    const emptyState = document.getElementById('empty-state');
+    let currentNovel = null;
+    let currentChapterIndex = 0;
+    let isInBookshelf = false;
+    let isLiked = false;
 
-    if (novelId) {
-      const novel = NovelDB.getById(novelId);
+    // 初始化
+    auth.onAuthStateChanged(async (user) => {
+      // 无论是否登录都加载小说
+      await loadNovel();
 
-      if (novel) {
-        // 增加阅读量
-        NovelDB.addView(novelId);
-
-        // 确定当前章节
-        const chapters = novel.chapters || [];
-        let currentChapterIndex = 0;
-        if (chapterId) {
-          currentChapterIndex = chapters.findIndex(ch => ch.id === chapterId);
-          if (currentChapterIndex === -1) currentChapterIndex = 0;
-        }
-
-        const currentChapter = chapters[currentChapterIndex];
-        const isLiked = localStorage.getItem(`liked_${novelId}`) === 'true';
-
-        // 将文本内容转为段落
-        const contentParagraphs = currentChapter.content
-          ? currentChapter.content.split('\n\n').map(p => `<p>${p.replace(/\n/g, '<br>')}</p>`).join('')
-          : '<p>暂无内容</p>';
-
-        container.innerHTML = `
-          <!-- 小说信息头 -->
-          <div class="reader-header">
-            <h1>${novel.title}</h1>
-            <div class="author-info">
-              ✍️ ${novel.author} · ${novel.category} · ${formatNumber(novel.views)} 阅读 · ${formatNumber(novel.likes)} 喜欢
-            </div>
-            <div style="margin-top: 12px;">
-              <button class="btn btn-secondary" id="like-btn" onclick="handleLike('${novelId}')">
-                ${isLiked ? '❤️ 已喜欢' : '🤍 喜欢'}
-              </button>
-            </div>
-          </div>
-
-          <!-- 章节标题 -->
-          <h2 style="text-align: center; font-size: 1.4rem; margin-bottom: 32px; color: var(--primary);">${currentChapter.title}</h2>
-
-          <!-- 章节内容 -->
-          <div class="reader-content">
-            ${contentParagraphs}
-          </div>
-
-          <!-- 章节导航 -->
-          <div class="reader-nav">
-            ${currentChapterIndex > 0
-              ? `<a href="reader.html?id=${novelId}&chapter=${chapters[currentChapterIndex - 1].id}" class="btn btn-secondary">← 上一章</a>`
-              : '<span></span>'
-            }
-            <div class="chapter-select">
-              <select onchange="window.location.href='reader.html?id=${novelId}&chapter='+this.value">
-                ${chapters.map((ch, i) => `<option value="${ch.id}" ${i === currentChapterIndex ? 'selected' : ''}>${ch.title}</option>`).join('')}
-              </select>
-            </div>
-            ${currentChapterIndex < chapters.length - 1
-              ? `<a href="reader.html?id=${novelId}&chapter=${chapters[currentChapterIndex + 1].id}" class="btn btn-primary">下一章 →</a>`
-              : '<span></span>'
-            }
-          </div>
-
-          <!-- 小说简介 -->
-          <div style="margin-top: 40px; padding: 24px; background: var(--bg); border-radius: var(--radius);">
-            <h3 style="font-size: 1rem; margin-bottom: 12px;">📖 作品简介</h3>
-            <p style="font-size: 0.9rem; color: var(--text-light); line-height: 1.8;">${novel.description}</p>
-            <div style="margin-top: 12px; font-size: 0.85rem; color: var(--text-lighter);">
-              最后更新：${novel.updatedAt} · 共 ${chapters.length} 章
-            </div>
-          </div>
-        `;
-
-        // 更新页面标题
-        document.title = `${novel.title} - ${currentChapter.title} - 墨韵小说`;
-      } else {
-        container.style.display = 'none';
-        emptyState.style.display = 'block';
+      // 如果已登录，检查书架和点赞状态
+      if (user && currentNovel) {
+        isInBookshelf = await Bookshelf.isInBookshelf(currentNovel.id);
+        isLiked = await NovelDB.checkLiked(currentNovel.id);
+        updateToolbarState();
       }
-    } else {
-      container.style.display = 'none';
-      emptyState.style.display = 'block';
+    });
+
+    // 加载小说
+    async function loadNovel() {
+      const novelId = getQueryParam('id');
+      const chapterId = getQueryParam('chapter');
+
+      if (!novelId) {
+        document.getElementById('reader-container').style.display = 'none';
+        document.getElementById('empty-state').style.display = 'block';
+        return;
+      }
+
+      currentNovel = await NovelDB.getById(novelId);
+
+      if (!currentNovel) {
+        document.getElementById('reader-container').style.display = 'none';
+        document.getElementById('empty-state').style.display = 'block';
+        return;
+      }
+
+      // 增加阅读量
+      await NovelDB.addView(novelId);
+
+      // 确定当前章节
+      const chapters = currentNovel.chapters || [];
+      if (chapterId) {
+        currentChapterIndex = chapters.findIndex(ch => ch.id === chapterId);
+        if (currentChapterIndex === -1) currentChapterIndex = 0;
+      } else {
+        // 检查是否有阅读进度
+        if (UserManager.currentUser) {
+          const progress = await ReadHistory.getProgress(novelId);
+          if (progress && progress.chapterIndex !== undefined) {
+            currentChapterIndex = progress.chapterIndex;
+          }
+        }
+      }
+
+      renderNovel();
     }
 
-    // 点赞处理
-    function handleLike(id) {
-      const result = NovelDB.toggleLike(id);
-      if (result) {
-        const btn = document.getElementById('like-btn');
-        btn.textContent = result.isLiked ? '❤️ 已喜欢' : '🤍 喜欢';
-        showToast(result.isLiked ? '已添加到喜欢' : '已取消喜欢', 'success');
+    // 渲染小说
+    async function renderNovel() {
+      const chapters = currentNovel.chapters || [];
+      const currentChapter = chapters[currentChapterIndex];
+
+      if (!currentChapter) {
+        document.getElementById('reader-container').innerHTML = `
+          <div class="empty-state">
+            <div class="empty-icon">📝</div>
+            <h3>暂无章节</h3>
+            <p>作者还没有发布章节内容</p>
+          </div>
+        `;
+        return;
       }
+
+      const container = document.getElementById('reader-container');
+      const contentParagraphs = currentChapter.content
+        ? currentChapter.content.split('\n\n').map(p => `<p>${p.replace(/\n/g, '<br>')}</p>`).join('')
+        : '<p>暂无内容</p>';
+
+      // 获取用户评分
+      let userRating = 0;
+      if (UserManager.currentUser) {
+        userRating = await RatingSystem.getUserRating(currentNovel.id);
+      }
+
+      container.innerHTML = `
+        <!-- 小说信息头 -->
+        <div class="reader-header">
+          <h1>${currentNovel.title}</h1>
+          <div class="author-info">
+            ✍️ <a href="profile.html?id=${currentNovel.authorId}" style="color: var(--accent);">${currentNovel.authorName || '匿名'}</a>
+            · ${currentNovel.category || '未分类'}
+            · ${formatNumber(currentNovel.views || 0)} 阅读
+            · ${formatNumber(currentNovel.likes || 0)} 喜欢
+          </div>
+        </div>
+
+        <!-- 评分区域 -->
+        <div id="rating-container"></div>
+
+        <!-- 章节标题 -->
+        <h2 style="text-align: center; font-size: 1.4rem; margin-bottom: 32px; color: var(--primary);">${currentChapter.title}</h2>
+
+        <!-- 章节内容 -->
+        <div class="reader-content" id="chapter-content">
+          ${contentParagraphs}
+        </div>
+
+        <!-- 章节导航 -->
+        <div class="reader-nav">
+          ${currentChapterIndex > 0
+            ? `<a href="reader.html?id=${currentNovel.id}&chapter=${chapters[currentChapterIndex - 1].id}" class="btn btn-secondary">← 上一章</a>`
+            : '<span></span>'
+          }
+          <div class="chapter-select">
+            <select onchange="navigateToChapter(this.value)">
+              ${chapters.map((ch, i) => `<option value="${ch.id}" ${i === currentChapterIndex ? 'selected' : ''}>${ch.title}</option>`).join('')}
+            </select>
+          </div>
+          ${currentChapterIndex < chapters.length - 1
+            ? `<a href="reader.html?id=${currentNovel.id}&chapter=${chapters[currentChapterIndex + 1].id}" class="btn btn-primary">下一章 →</a>`
+            : '<span></span>'
+          }
+        </div>
+
+        <!-- 小说简介 -->
+        <div style="margin-top: 40px; padding: 24px; background: var(--bg); border-radius: var(--radius);">
+          <h3 style="font-size: 1rem; margin-bottom: 12px;">📖 作品简介</h3>
+          <p style="font-size: 0.9rem; color: var(--text-light); line-height: 1.8;">${currentNovel.description || '暂无简介'}</p>
+          <div style="margin-top: 12px; font-size: 0.85rem; color: var(--text-lighter);">
+            最后更新：${formatDate(currentNovel.updatedAt)} · 共 ${chapters.length} 章
+          </div>
+        </div>
+
+        <!-- 评论区 -->
+        <div id="comments-container"></div>
+      `;
+
+      // 渲染评分
+      RatingSystem.renderRating(
+        document.getElementById('rating-container'),
+        currentNovel.id,
+        userRating,
+        currentNovel.rating,
+        currentNovel.ratingCount
+      );
+
+      // 渲染评论
+      const comments = await CommentSystem.getComments(currentNovel.id);
+      CommentSystem.renderComments(document.getElementById('comments-container'), comments, currentNovel.id);
+
+      // 更新页面标题
+      document.title = `${currentNovel.title} - ${currentChapter.title} - 墨韵小说`;
+
+      // 保存阅读进度
+      if (UserManager.currentUser) {
+        await ReadHistory.updateProgress(currentNovel.id, currentChapter.id, currentChapterIndex);
+      }
+
+      // 监听滚动更新进度条
+      window.addEventListener('scroll', updateProgressBar);
+    }
+
+    // 跳转到章节
+    function navigateToChapter(chapterId) {
+      window.location.href = `reader.html?id=${currentNovel.id}&chapter=${chapterId}`;
+    }
+
+    // 更新进度条
+    function updateProgressBar() {
+      const scrollTop = window.scrollY;
+      const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+      const progress = (scrollTop / docHeight) * 100;
+      document.getElementById('progress-bar').style.width = `${Math.min(progress, 100)}%`;
+    }
+
+    // 更新工具栏状态
+    function updateToolbarState() {
+      document.getElementById('bookshelf-btn').classList.toggle('active', isInBookshelf);
+      document.getElementById('like-btn').classList.toggle('active', isLiked);
+    }
+
+    // 加入/移出书架
+    async function toggleBookshelf() {
+      if (!UserManager.currentUser) {
+        showToast('请先登录', 'error');
+        return;
+      }
+
+      if (isInBookshelf) {
+        await Bookshelf.removeFromBookshelf(currentNovel.id);
+        isInBookshelf = false;
+      } else {
+        await Bookshelf.addToBookshelf(currentNovel.id);
+        isInBookshelf = true;
+      }
+      updateToolbarState();
+    }
+
+    // 点赞
+    async function handleLike() {
+      if (!UserManager.currentUser) {
+        showToast('请先登录', 'error');
+        return;
+      }
+
+      const result = await NovelDB.toggleLike(currentNovel.id);
+      if (result) {
+        isLiked = result.liked;
+        updateToolbarState();
+      }
+    }
+
+    // 回到顶部
+    function scrollToTop() {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   </script>
 

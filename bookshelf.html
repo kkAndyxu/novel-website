@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>我的书架 - 墨韵小说</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- 导航栏 -->
+  <nav class="navbar">
+    <div class="nav-container">
+      <a href="index.html" class="nav-logo">
+        <span class="logo-icon">📖</span>
+        <span>墨韵小说</span>
+      </a>
+      <div class="nav-links">
+        <a href="index.html">首页</a>
+        <a href="novels.html">小说库</a>
+        <a href="inspiration.html">写作灵感</a>
+        <a href="login.html" class="nav-btn">🔐 登录</a>
+      </div>
+      <div class="nav-search">
+        <span class="search-icon">🔍</span>
+        <input type="text" placeholder="搜索小说、作者...">
+      </div>
+      <button class="nav-menu-btn">☰</button>
+    </div>
+  </nav>
+
+  <!-- 主内容 -->
+  <main class="main-content">
+
+    <!-- 标签切换 -->
+    <div class="profile-tabs">
+      <div class="profile-tab active" onclick="switchBookshelfTab('bookshelf')">📚 我的书架</div>
+      <div class="profile-tab" onclick="switchBookshelfTab('history')">📖 阅读历史</div>
+    </div>
+
+    <!-- 我的书架 -->
+    <div id="bookshelf-panel">
+      <div class="bookshelf-header">
+        <h2 class="section-title">📚 我的书架</h2>
+        <span id="bookshelf-count" style="color: var(--text-light); font-size: 0.9rem;"></span>
+      </div>
+      <div class="bookshelf-grid" id="bookshelf-grid">
+        <div class="loading"><div class="loading-spinner"></div></div>
+      </div>
+    </div>
+
+    <!-- 阅读历史 -->
+    <div id="history-panel" style="display: none;">
+      <div class="bookshelf-header">
+        <h2 class="section-title">📖 阅读历史</h2>
+        <button class="btn btn-secondary" onclick="clearHistory()">清空历史</button>
+      </div>
+      <div class="bookshelf-grid" id="history-grid">
+        <div class="loading"><div class="loading-spinner"></div></div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- 页脚 -->
+  <footer class="footer">
+    <div class="footer-content">
+      <div class="footer-brand">
+        <h3>📖 墨韵小说</h3>
+        <p>一个开放的原创文学创作平台，致力于为每一位创作者提供展示才华的舞台。</p>
+      </div>
+      <div class="footer-links">
+        <h4>快速导航</h4>
+        <a href="index.html">首页</a>
+        <a href="novels.html">小说库</a>
+        <a href="inspiration.html">写作灵感</a>
+      </div>
+      <div class="footer-links">
+        <h4>热门分类</h4>
+        <a href="novels.html?category=科幻">科幻</a>
+        <a href="novels.html?category=古风">古风</a>
+        <a href="novels.html?category=都市">都市</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>© 2026 墨韵小说 - 用文字编织梦想</p>
+    </div>
+  </footer>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+
+  <script src="firebase-config.js"></script>
+  <script src="auth.js"></script>
+  <script src="noveldb.js"></script>
+  <script src="bookshelf.js"></script>
+
+  <script>
+    // 初始化
+    auth.onAuthStateChanged(async (user) => {
+      if (!user) {
+        window.location.href = 'login.html';
+        return;
+      }
+
+      await UserManager.loadUserProfile();
+      loadBookshelf();
+      loadHistory();
+    });
+
+    // 加载书架
+    async function loadBookshelf() {
+      const books = await Bookshelf.getMyBookshelf();
+      const container = document.getElementById('bookshelf-grid');
+      document.getElementById('bookshelf-count').textContent = `共 ${books.length} 本`;
+
+      if (books.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state" style="grid-column: 1 / -1;">
+            <div class="empty-icon">📚</div>
+            <h3>书架空空如也</h3>
+            <p>去小说库逛逛，收藏你喜欢的小说吧！</p>
+            <a href="novels.html" class="btn btn-primary">浏览小说库</a>
+          </div>
+        `;
+      } else {
+        container.innerHTML = books.map(novel => `
+          <div class="bookshelf-item">
+            <div class="novel-cover cover-gradient-${novel.cover || 1}" onclick="window.location.href='reader.html?id=${novel.id}'">
+              <span class="cover-text">${novel.title}</span>
+            </div>
+            <div class="novel-info">
+              <div class="novel-title">${novel.title}</div>
+              <div class="novel-author">✍️ ${novel.authorName || '匿名'}</div>
+              <button class="continue-btn" onclick="window.location.href='reader.html?id=${novel.id}'">
+                ${novel.lastChapterId ? '继续阅读' : '开始阅读'}
+              </button>
+            </div>
+          </div>
+        `).join('');
+      }
+    }
+
+    // 加载阅读历史
+    async function loadHistory() {
+      const history = await ReadHistory.getHistory();
+      const container = document.getElementById('history-grid');
+
+      if (history.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state" style="grid-column: 1 / -1;">
+            <div class="empty-icon">📖</div>
+            <h3>暂无阅读记录</h3>
+            <p>开始阅读你的第一本小说吧！</p>
+            <a href="novels.html" class="btn btn-primary">浏览小说库</a>
+          </div>
+        `;
+      } else {
+        container.innerHTML = history.map(novel => `
+          <div class="bookshelf-item">
+            <div class="novel-cover cover-gradient-${novel.cover || 1}" onclick="window.location.href='reader.html?id=${novel.id}&chapter=${novel.lastChapterId || ''}'">
+              <span class="cover-text">${novel.title}</span>
+            </div>
+            <div class="novel-info">
+              <div class="novel-title">${novel.title}</div>
+              <div class="novel-author" style="font-size: 0.75rem;">
+                上次阅读：${ReadHistory.timeAgo(novel.lastReadAt)}
+              </div>
+              <button class="continue-btn" onclick="window.location.href='reader.html?id=${novel.id}&chapter=${novel.lastChapterId || ''}'">
+                继续阅读
+              </button>
+            </div>
+          </div>
+        `).join('');
+      }
+    }
+
+    // 切换标签
+    function switchBookshelfTab(tab) {
+      document.querySelectorAll('.profile-tab').forEach(t => t.classList.remove('active'));
+      event.target.classList.add('active');
+
+      document.getElementById('bookshelf-panel').style.display = tab === 'bookshelf' ? 'block' : 'none';
+      document.getElementById('history-panel').style.display = tab === 'history' ? 'block' : 'none';
+    }
+
+    // 清空历史
+    async function clearHistory() {
+      if (confirm('确定要清空所有阅读历史吗？')) {
+        await ReadHistory.clearHistory();
+        loadHistory();
+      }
+    }
+  </script>
+
+</body>
+</html>

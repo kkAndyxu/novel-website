@@ -19,7 +19,7 @@
         <a href="index.html">首页</a>
         <a href="novels.html">小说库</a>
         <a href="inspiration.html">写作灵感</a>
-        <a href="publish.html" class="nav-btn active">✏️ 发布作品</a>
+        <a href="login.html" class="nav-btn">🔐 登录</a>
       </div>
       <div class="nav-search">
         <span class="search-icon">🔍</span>
@@ -51,10 +51,6 @@
 
         <div class="form-row">
           <div class="form-group">
-            <label>作者笔名 <span class="required">*</span></label>
-            <input type="text" class="form-input" id="novel-author" placeholder="你的笔名" maxlength="20">
-          </div>
-          <div class="form-group">
             <label>分类 <span class="required">*</span></label>
             <select class="form-input" id="novel-category">
               <option value="">请选择分类</option>
@@ -68,6 +64,19 @@
               <option value="历史">历史</option>
               <option value="奇幻">奇幻</option>
               <option value="其他">其他</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>封面颜色</label>
+            <select class="form-input" id="novel-cover">
+              <option value="1">紫蓝渐变</option>
+              <option value="2">粉红渐变</option>
+              <option value="3">蓝青渐变</option>
+              <option value="4">绿青渐变</option>
+              <option value="5">粉黄渐变</option>
+              <option value="6">紫粉渐变</option>
+              <option value="7">橙紫渐变</option>
+              <option value="8">紫蓝渐变2</option>
             </select>
           </div>
         </div>
@@ -106,25 +115,17 @@
     <div class="footer-content">
       <div class="footer-brand">
         <h3>📖 墨韵小说</h3>
-        <p>一个开放的原创文学创作平台，致力于为每一位创作者提供展示才华的舞台，为每一位读者带来精彩的故事体验。</p>
+        <p>一个开放的原创文学创作平台。</p>
       </div>
       <div class="footer-links">
         <h4>快速导航</h4>
         <a href="index.html">首页</a>
         <a href="novels.html">小说库</a>
         <a href="inspiration.html">写作灵感</a>
-        <a href="publish.html">发布作品</a>
-      </div>
-      <div class="footer-links">
-        <h4>热门分类</h4>
-        <a href="novels.html?category=科幻">科幻</a>
-        <a href="novels.html?category=古风">古风</a>
-        <a href="novels.html?category=都市">都市</a>
-        <a href="novels.html?category=悬疑">悬疑</a>
       </div>
     </div>
     <div class="footer-bottom">
-      <p>© 2026 墨韵小说 - 用文字编织梦想</p>
+      <p>© 2026 墨韵小说</p>
     </div>
   </footer>
 
@@ -147,18 +148,38 @@
     </div>
   </div>
 
-  <script src="script.js"></script>
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+
+  <script src="firebase-config.js"></script>
+  <script src="auth.js"></script>
+  <script src="noveldb.js"></script>
+
   <script>
     let chapters = [];
     let editingChapterIndex = -1;
 
-    // 初始化 - 添加一个默认章节
-    addChapter();
+    // 初始化 - 检查登录状态
+    auth.onAuthStateChanged(async (user) => {
+      if (!user) {
+        showToast('请先登录', 'error');
+        setTimeout(() => {
+          window.location.href = 'login.html?redirect=publish.html';
+        }, 1000);
+        return;
+      }
+
+      await UserManager.loadUserProfile();
+      addChapter(); // 添加一个默认章节
+    });
 
     // 添加章节
     function addChapter() {
       const chapterNum = chapters.length + 1;
       chapters.push({
+        id: generateId(),
         title: `第${toChineseNum(chapterNum)}章`,
         content: ''
       });
@@ -224,7 +245,7 @@
         chapters[editingChapterIndex].title = title;
         chapters[editingChapterIndex].content = content;
       } else {
-        chapters.push({ title, content });
+        chapters.push({ id: generateId(), title, content });
       }
 
       closeModal();
@@ -241,15 +262,14 @@
     }
 
     // 发布小说
-    function publishNovel() {
+    async function publishNovel() {
       const title = document.getElementById('novel-title').value.trim();
-      const author = document.getElementById('novel-author').value.trim();
       const category = document.getElementById('novel-category').value;
+      const cover = parseInt(document.getElementById('novel-cover').value);
       const desc = document.getElementById('novel-desc').value.trim();
 
       // 验证
       if (!title) { showToast('请输入小说标题', 'error'); return; }
-      if (!author) { showToast('请输入作者笔名', 'error'); return; }
       if (!category) { showToast('请选择分类', 'error'); return; }
       if (!desc) { showToast('请输入小说简介', 'error'); return; }
 
@@ -263,30 +283,27 @@
       // 构建小说数据
       const novel = {
         title,
-        author,
         category,
+        cover,
         description: desc,
-        chapters: validChapters.map((ch, i) => ({
-          id: `${Date.now()}-${i}`,
-          title: ch.title,
-          content: ch.content
-        }))
+        chapters: validChapters
       };
 
-      // 保存
-      const savedNovel = NovelDB.add(novel);
-      showToast('🎉 小说发布成功！', 'success');
+      // 保存到 Firebase
+      const savedNovel = await NovelDB.add(novel);
 
-      // 跳转到阅读页
-      setTimeout(() => {
-        window.location.href = `reader.html?id=${savedNovel.id}`;
-      }, 1500);
+      if (savedNovel) {
+        showToast('🎉 小说发布成功！', 'success');
+        // 跳转到阅读页
+        setTimeout(() => {
+          window.location.href = `reader.html?id=${savedNovel.id}`;
+        }, 1500);
+      }
     }
 
     // 重置表单
     function resetForm() {
       document.getElementById('novel-title').value = '';
-      document.getElementById('novel-author').value = '';
       document.getElementById('novel-category').value = '';
       document.getElementById('novel-desc').value = '';
       chapters = [];
