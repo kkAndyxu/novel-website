@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>阅读 - 墨韵小说</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- 导航栏 -->
+  <nav class="navbar">
+    <div class="nav-container">
+      <a href="index.html" class="nav-logo">
+        <span class="logo-icon">📖</span>
+        <span>墨韵小说</span>
+      </a>
+      <div class="nav-links">
+        <a href="index.html">首页</a>
+        <a href="novels.html" class="active">小说库</a>
+        <a href="inspiration.html">写作灵感</a>
+        <a href="publish.html" class="nav-btn">✏️ 发布作品</a>
+      </div>
+      <div class="nav-search">
+        <span class="search-icon">🔍</span>
+        <input type="text" placeholder="搜索小说、作者...">
+      </div>
+      <button class="nav-menu-btn">☰</button>
+    </div>
+  </nav>
+
+  <!-- 主内容 -->
+  <main class="main-content">
+
+    <!-- 返回按钮 -->
+    <div style="margin-bottom: 20px;">
+      <a href="novels.html" class="btn btn-secondary">← 返回小说库</a>
+    </div>
+
+    <!-- 阅读容器 -->
+    <div class="reader-container" id="reader-container">
+      <!-- 动态填充 -->
+    </div>
+
+    <!-- 空状态 -->
+    <div class="empty-state" id="empty-state" style="display: none;">
+      <div class="empty-icon">📭</div>
+      <h3>小说未找到</h3>
+      <p>请检查链接是否正确，或浏览小说库寻找感兴趣的作品。</p>
+      <a href="novels.html" class="btn btn-primary">📚 浏览小说库</a>
+    </div>
+
+  </main>
+
+  <!-- 页脚 -->
+  <footer class="footer">
+    <div class="footer-content">
+      <div class="footer-brand">
+        <h3>📖 墨韵小说</h3>
+        <p>一个开放的原创文学创作平台，致力于为每一位创作者提供展示才华的舞台，为每一位读者带来精彩的故事体验。</p>
+      </div>
+      <div class="footer-links">
+        <h4>快速导航</h4>
+        <a href="index.html">首页</a>
+        <a href="novels.html">小说库</a>
+        <a href="inspiration.html">写作灵感</a>
+        <a href="publish.html">发布作品</a>
+      </div>
+      <div class="footer-links">
+        <h4>热门分类</h4>
+        <a href="novels.html?category=科幻">科幻</a>
+        <a href="novels.html?category=古风">古风</a>
+        <a href="novels.html?category=都市">都市</a>
+        <a href="novels.html?category=悬疑">悬疑</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>© 2026 墨韵小说 - 用文字编织梦想</p>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+  <script>
+    const novelId = getQueryParam('id');
+    const chapterId = getQueryParam('chapter');
+    const container = document.getElementById('reader-container');
+    const emptyState = document.getElementById('empty-state');
+
+    if (novelId) {
+      const novel = NovelDB.getById(novelId);
+
+      if (novel) {
+        // 增加阅读量
+        NovelDB.addView(novelId);
+
+        // 确定当前章节
+        const chapters = novel.chapters || [];
+        let currentChapterIndex = 0;
+        if (chapterId) {
+          currentChapterIndex = chapters.findIndex(ch => ch.id === chapterId);
+          if (currentChapterIndex === -1) currentChapterIndex = 0;
+        }
+
+        const currentChapter = chapters[currentChapterIndex];
+        const isLiked = localStorage.getItem(`liked_${novelId}`) === 'true';
+
+        // 将文本内容转为段落
+        const contentParagraphs = currentChapter.content
+          ? currentChapter.content.split('\n\n').map(p => `<p>${p.replace(/\n/g, '<br>')}</p>`).join('')
+          : '<p>暂无内容</p>';
+
+        container.innerHTML = `
+          <!-- 小说信息头 -->
+          <div class="reader-header">
+            <h1>${novel.title}</h1>
+            <div class="author-info">
+              ✍️ ${novel.author} · ${novel.category} · ${formatNumber(novel.views)} 阅读 · ${formatNumber(novel.likes)} 喜欢
+            </div>
+            <div style="margin-top: 12px;">
+              <button class="btn btn-secondary" id="like-btn" onclick="handleLike('${novelId}')">
+                ${isLiked ? '❤️ 已喜欢' : '🤍 喜欢'}
+              </button>
+            </div>
+          </div>
+
+          <!-- 章节标题 -->
+          <h2 style="text-align: center; font-size: 1.4rem; margin-bottom: 32px; color: var(--primary);">${currentChapter.title}</h2>
+
+          <!-- 章节内容 -->
+          <div class="reader-content">
+            ${contentParagraphs}
+          </div>
+
+          <!-- 章节导航 -->
+          <div class="reader-nav">
+            ${currentChapterIndex > 0
+              ? `<a href="reader.html?id=${novelId}&chapter=${chapters[currentChapterIndex - 1].id}" class="btn btn-secondary">← 上一章</a>`
+              : '<span></span>'
+            }
+            <div class="chapter-select">
+              <select onchange="window.location.href='reader.html?id=${novelId}&chapter='+this.value">
+                ${chapters.map((ch, i) => `<option value="${ch.id}" ${i === currentChapterIndex ? 'selected' : ''}>${ch.title}</option>`).join('')}
+              </select>
+            </div>
+            ${currentChapterIndex < chapters.length - 1
+              ? `<a href="reader.html?id=${novelId}&chapter=${chapters[currentChapterIndex + 1].id}" class="btn btn-primary">下一章 →</a>`
+              : '<span></span>'
+            }
+          </div>
+
+          <!-- 小说简介 -->
+          <div style="margin-top: 40px; padding: 24px; background: var(--bg); border-radius: var(--radius);">
+            <h3 style="font-size: 1rem; margin-bottom: 12px;">📖 作品简介</h3>
+            <p style="font-size: 0.9rem; color: var(--text-light); line-height: 1.8;">${novel.description}</p>
+            <div style="margin-top: 12px; font-size: 0.85rem; color: var(--text-lighter);">
+              最后更新：${novel.updatedAt} · 共 ${chapters.length} 章
+            </div>
+          </div>
+        `;
+
+        // 更新页面标题
+        document.title = `${novel.title} - ${currentChapter.title} - 墨韵小说`;
+      } else {
+        container.style.display = 'none';
+        emptyState.style.display = 'block';
+      }
+    } else {
+      container.style.display = 'none';
+      emptyState.style.display = 'block';
+    }
+
+    // 点赞处理
+    function handleLike(id) {
+      const result = NovelDB.toggleLike(id);
+      if (result) {
+        const btn = document.getElementById('like-btn');
+        btn.textContent = result.isLiked ? '❤️ 已喜欢' : '🤍 喜欢';
+        showToast(result.isLiked ? '已添加到喜欢' : '已取消喜欢', 'success');
+      }
+    }
+  </script>
+
+</body>
+</html>

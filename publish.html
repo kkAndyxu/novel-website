@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>发布小说 - 墨韵小说</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- 导航栏 -->
+  <nav class="navbar">
+    <div class="nav-container">
+      <a href="index.html" class="nav-logo">
+        <span class="logo-icon">📖</span>
+        <span>墨韵小说</span>
+      </a>
+      <div class="nav-links">
+        <a href="index.html">首页</a>
+        <a href="novels.html">小说库</a>
+        <a href="inspiration.html">写作灵感</a>
+        <a href="publish.html" class="nav-btn active">✏️ 发布作品</a>
+      </div>
+      <div class="nav-search">
+        <span class="search-icon">🔍</span>
+        <input type="text" placeholder="搜索小说、作者...">
+      </div>
+      <button class="nav-menu-btn">☰</button>
+    </div>
+  </nav>
+
+  <!-- 主内容 -->
+  <main class="main-content">
+
+    <!-- 页面标题 -->
+    <div style="margin-bottom: 24px;">
+      <h1 class="section-title" style="font-size: 1.5rem;"><span class="icon">✏️</span> 发布新小说</h1>
+      <p style="color: var(--text-light); font-size: 0.9rem; margin-top: 8px;">分享你的故事，让更多人看到你的才华</p>
+    </div>
+
+    <!-- 发布表单 -->
+    <div class="publish-container">
+      <form class="publish-form" id="publish-form" onsubmit="return false;">
+
+        <!-- 基本信息 -->
+        <div class="form-group">
+          <label>小说标题 <span class="required">*</span></label>
+          <input type="text" class="form-input" id="novel-title" placeholder="给你的小说起一个吸引人的名字" maxlength="50">
+          <div class="form-hint">标题长度不超过50个字符</div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>作者笔名 <span class="required">*</span></label>
+            <input type="text" class="form-input" id="novel-author" placeholder="你的笔名" maxlength="20">
+          </div>
+          <div class="form-group">
+            <label>分类 <span class="required">*</span></label>
+            <select class="form-input" id="novel-category">
+              <option value="">请选择分类</option>
+              <option value="科幻">科幻</option>
+              <option value="古风">古风</option>
+              <option value="都市">都市</option>
+              <option value="玄幻">玄幻</option>
+              <option value="言情">言情</option>
+              <option value="悬疑">悬疑</option>
+              <option value="武侠">武侠</option>
+              <option value="历史">历史</option>
+              <option value="奇幻">奇幻</option>
+              <option value="其他">其他</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>小说简介 <span class="required">*</span></label>
+          <textarea class="form-input" id="novel-desc" placeholder="简要描述你的小说内容，让读者了解故事背景和看点..." maxlength="300" style="min-height: 100px;"></textarea>
+          <div class="form-hint">简介长度不超过300个字符</div>
+        </div>
+
+        <!-- 章节管理 -->
+        <div class="form-group">
+          <label>章节内容 <span class="required">*</span></label>
+          <p style="font-size: 0.85rem; color: var(--text-light); margin-bottom: 12px;">至少添加一个章节。每个章节的正文建议分段书写，段落之间用空行分隔。</p>
+
+          <div class="chapter-list" id="chapter-list">
+            <!-- 动态填充 -->
+          </div>
+
+          <button type="button" class="add-chapter-btn" onclick="addChapter()">+ 添加新章节</button>
+        </div>
+
+        <!-- 操作按钮 -->
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" onclick="resetForm()">重置</button>
+          <button type="button" class="btn btn-primary" onclick="publishNovel()">📝 发布小说</button>
+        </div>
+
+      </form>
+    </div>
+
+  </main>
+
+  <!-- 页脚 -->
+  <footer class="footer">
+    <div class="footer-content">
+      <div class="footer-brand">
+        <h3>📖 墨韵小说</h3>
+        <p>一个开放的原创文学创作平台，致力于为每一位创作者提供展示才华的舞台，为每一位读者带来精彩的故事体验。</p>
+      </div>
+      <div class="footer-links">
+        <h4>快速导航</h4>
+        <a href="index.html">首页</a>
+        <a href="novels.html">小说库</a>
+        <a href="inspiration.html">写作灵感</a>
+        <a href="publish.html">发布作品</a>
+      </div>
+      <div class="footer-links">
+        <h4>热门分类</h4>
+        <a href="novels.html?category=科幻">科幻</a>
+        <a href="novels.html?category=古风">古风</a>
+        <a href="novels.html?category=都市">都市</a>
+        <a href="novels.html?category=悬疑">悬疑</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>© 2026 墨韵小说 - 用文字编织梦想</p>
+    </div>
+  </footer>
+
+  <!-- 章节编辑模态框 -->
+  <div class="modal-overlay" id="chapter-modal">
+    <div class="modal">
+      <h2 id="modal-title">添加章节</h2>
+      <div class="form-group">
+        <label>章节标题 <span class="required">*</span></label>
+        <input type="text" class="form-input" id="chapter-title" placeholder="例如：第一章 初遇" maxlength="50">
+      </div>
+      <div class="form-group">
+        <label>章节内容 <span class="required">*</span></label>
+        <textarea class="form-input" id="chapter-content" placeholder="在这里书写你的故事...段落之间用空行分隔。" style="min-height: 250px;"></textarea>
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn btn-secondary" onclick="closeModal()">取消</button>
+        <button type="button" class="btn btn-primary" onclick="saveChapter()">保存章节</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+  <script>
+    let chapters = [];
+    let editingChapterIndex = -1;
+
+    // 初始化 - 添加一个默认章节
+    addChapter();
+
+    // 添加章节
+    function addChapter() {
+      const chapterNum = chapters.length + 1;
+      chapters.push({
+        title: `第${toChineseNum(chapterNum)}章`,
+        content: ''
+      });
+      renderChapterList();
+    }
+
+    // 数字转中文
+    function toChineseNum(num) {
+      const chars = ['零','一','二','三','四','五','六','七','八','九','十',
+                     '十一','十二','十三','十四','十五','十六','十七','十八','十九','二十'];
+      return chars[num] || num.toString();
+    }
+
+    // 渲染章节列表
+    function renderChapterList() {
+      const container = document.getElementById('chapter-list');
+      container.innerHTML = chapters.map((ch, i) => `
+        <div class="chapter-item">
+          <span class="chapter-name">${ch.title || '未命名章节'}</span>
+          <div class="chapter-actions">
+            <button onclick="editChapter(${i})" title="编辑">✏️</button>
+            <button onclick="deleteChapter(${i})" title="删除">🗑️</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // 编辑章节
+    function editChapter(index) {
+      editingChapterIndex = index;
+      document.getElementById('modal-title').textContent = '编辑章节';
+      document.getElementById('chapter-title').value = chapters[index].title;
+      document.getElementById('chapter-content').value = chapters[index].content;
+      document.getElementById('chapter-modal').classList.add('active');
+    }
+
+    // 删除章节
+    function deleteChapter(index) {
+      if (chapters.length <= 1) {
+        showToast('至少保留一个章节', 'error');
+        return;
+      }
+      chapters.splice(index, 1);
+      renderChapterList();
+      showToast('章节已删除', 'info');
+    }
+
+    // 保存章节
+    function saveChapter() {
+      const title = document.getElementById('chapter-title').value.trim();
+      const content = document.getElementById('chapter-content').value.trim();
+
+      if (!title) {
+        showToast('请输入章节标题', 'error');
+        return;
+      }
+      if (!content) {
+        showToast('请输入章节内容', 'error');
+        return;
+      }
+
+      if (editingChapterIndex >= 0) {
+        chapters[editingChapterIndex].title = title;
+        chapters[editingChapterIndex].content = content;
+      } else {
+        chapters.push({ title, content });
+      }
+
+      closeModal();
+      renderChapterList();
+      showToast('章节已保存', 'success');
+    }
+
+    // 关闭模态框
+    function closeModal() {
+      document.getElementById('chapter-modal').classList.remove('active');
+      document.getElementById('chapter-title').value = '';
+      document.getElementById('chapter-content').value = '';
+      editingChapterIndex = -1;
+    }
+
+    // 发布小说
+    function publishNovel() {
+      const title = document.getElementById('novel-title').value.trim();
+      const author = document.getElementById('novel-author').value.trim();
+      const category = document.getElementById('novel-category').value;
+      const desc = document.getElementById('novel-desc').value.trim();
+
+      // 验证
+      if (!title) { showToast('请输入小说标题', 'error'); return; }
+      if (!author) { showToast('请输入作者笔名', 'error'); return; }
+      if (!category) { showToast('请选择分类', 'error'); return; }
+      if (!desc) { showToast('请输入小说简介', 'error'); return; }
+
+      // 检查是否有有效章节
+      const validChapters = chapters.filter(ch => ch.content.trim());
+      if (validChapters.length === 0) {
+        showToast('请至少编写一个章节的内容', 'error');
+        return;
+      }
+
+      // 构建小说数据
+      const novel = {
+        title,
+        author,
+        category,
+        description: desc,
+        chapters: validChapters.map((ch, i) => ({
+          id: `${Date.now()}-${i}`,
+          title: ch.title,
+          content: ch.content
+        }))
+      };
+
+      // 保存
+      const savedNovel = NovelDB.add(novel);
+      showToast('🎉 小说发布成功！', 'success');
+
+      // 跳转到阅读页
+      setTimeout(() => {
+        window.location.href = `reader.html?id=${savedNovel.id}`;
+      }, 1500);
+    }
+
+    // 重置表单
+    function resetForm() {
+      document.getElementById('novel-title').value = '';
+      document.getElementById('novel-author').value = '';
+      document.getElementById('novel-category').value = '';
+      document.getElementById('novel-desc').value = '';
+      chapters = [];
+      addChapter();
+      showToast('表单已重置', 'info');
+    }
+
+    // 点击模态框外部关闭
+    document.getElementById('chapter-modal').addEventListener('click', (e) => {
+      if (e.target === document.getElementById('chapter-modal')) {
+        closeModal();
+      }
+    });
+  </script>
+
+</body>
+</html>
